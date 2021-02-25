@@ -81,13 +81,13 @@ Response body
 
 
 ## 主要特性：  
-[x] 系统平台信息  
-[x] IP  
-[x] 内存  
-[x] 磁盘  
-[x] CPU
+- [x] 系统平台信息  
+- [x] IP  
+- [x] 内存  
+- [x] 磁盘  
+- [x] CPU
 
 ## 支持的平台
-[x] Windows  
-[x] Linux  
-[x] MacOS  
+- [x] Windows  
+- [x] Linux  
+- [x] MacOS  
