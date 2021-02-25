@@ -30,7 +30,9 @@ async fn task(config: Arc<config::Config>) {
 
 #[get("/")]
 async fn index() -> impl Responder {
-    format!("Hello! <a href=\"/sys-info\">See.</a>")
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .body("Hello! <a href=\"/sys-info\">See.</a>")
 }
 
 #[get("/sys-info")]
