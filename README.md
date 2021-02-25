@@ -4,6 +4,8 @@
 
 ## 使用
 
+支持 HTTP 接口和回调通知两种使用方式。
+
 ### 1、CURL/HTTP GET
 ``` shell
 curl -X GET http://localhost:8080/sys-info -H "accept: application/json"
