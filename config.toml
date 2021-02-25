@@ -1,0 +1,11 @@
+[sys]
+timer = 100
+
+[http]
+bind = "127.0.0.1"
+port = 8080
+
+[notification]
+enable = true
+url = "http://www.httpbin.org/post"
+interval = 5000
