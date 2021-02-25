@@ -79,7 +79,7 @@ Response body
 ```
 
 ### 2、回调通知
-支持配置回调地址，应用将定时将数据上报到指定的 URL。具体参数配置说明请看 [config.toml](config.toml) 文件。
+支持配置回调地址，定时上报数据到指定的 URL。具体参数配置说明请看 [config.toml](config.toml) 文件。
 
 
 ## 主要特性：  
