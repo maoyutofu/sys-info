@@ -10,7 +10,7 @@ port = 8080
 
 [notification]
 # 是否启用回调通知
-enable = true
+enable = false
 # 回调地址
 url = "http://www.httpbin.org/post"
 # 间隔时间
