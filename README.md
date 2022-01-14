@@ -93,3 +93,4 @@ Response body
 - [x] Windows  
 - [x] Linux  
 - [x] MacOS  
+- [x] 银河麒麟 (Phytium,FT-1500A)  
