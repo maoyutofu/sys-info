@@ -1,15 +1,20 @@
+use std::{collections::HashMap, time::Duration};
+
+use futures::StreamExt;
+#[cfg(target_os = "linux")]
+use heim::net::os::linux::IoCountersExt;
+#[cfg(target_os = "windows")]
+use heim::net::os::windows::IoCountersExt;
+use heim::{
+    cpu, disk, host, memory, net,
+    units::{information, ratio},
+    Error,
+};
+
 pub mod config;
 pub mod result;
 pub mod server;
 pub mod system_info;
-
-use futures::StreamExt;
-use heim::{
-    cpu, disk, host, memory,
-    units::{information, ratio},
-    Error,
-};
-use std::time::Duration;
 
 async fn sys_info(timer: u64) -> std::result::Result<system_info::SystemInfo, Error> {
     let platform = host::platform().await?;
@@ -46,7 +51,6 @@ async fn sys_info(timer: u64) -> std::result::Result<system_info::SystemInfo, Er
             mount_point,
         });
     }
-    let ip = local_ipaddress::get().unwrap_or("127.0.0.1".parse().unwrap());
 
     let platform = system_info::Platform {
         system,
@@ -55,7 +59,7 @@ async fn sys_info(timer: u64) -> std::result::Result<system_info::SystemInfo, Er
         version,
         arch,
     };
-    let net = vec![system_info::Net { ip }];
+
     let memory = system_info::Memory {
         total,
         free,
@@ -70,6 +74,104 @@ async fn sys_info(timer: u64) -> std::result::Result<system_info::SystemInfo, Er
 
     let count = cpu::logical_count().await?;
     let cpu = system_info::Cpu { count, usage };
+
+    let mut map: HashMap<String, HashMap<&str, String>> = HashMap::new();
+
+    let nic = net::nic().await?;
+    futures::pin_mut!(nic);
+    while let Some(iface) = nic.next().await {
+        let iface = iface?;
+
+        let name = iface.name().to_string();
+
+        let new_tmp: HashMap<&str, String> = HashMap::new();
+
+        let mut tmp: HashMap<&str, String> = match map.get(&name) {
+            Some(x) => x.to_owned(),
+            None => new_tmp,
+        };
+
+        let addr = iface.address();
+
+        match addr {
+            net::Address::Inet(addr) => {
+                tmp.insert("ip", addr.ip().to_string());
+            }
+            net::Address::Inet6(addr) => {
+                tmp.insert("ip_v6", addr.ip().to_string());
+            }
+            net::Address::Link(addr) => {
+                tmp.insert("mac", addr.to_string());
+            }
+            _ => {}
+        }
+
+        map.insert(name, tmp);
+    }
+
+    let counters = net::io_counters().await?;
+    futures::pin_mut!(counters);
+    while let Some(counter) = counters.next().await {
+        if counter.is_err() {
+            continue;
+        }
+
+        let counter = counter.unwrap();
+
+        let inter = counter.interface();
+
+        let tmp = map.get_mut(inter);
+        if tmp.is_none() {
+            continue;
+        }
+        let tmp = tmp.unwrap();
+
+        let bytes_sent = counter.bytes_sent();
+        tmp.insert("bytes_sent", bytes_sent.value.to_string());
+
+        let bytes_recv = counter.bytes_recv();
+        tmp.insert("bytes_recv", bytes_recv.value.to_string());
+
+        let packets_sent = counter.packets_sent();
+        tmp.insert("packets_sent", packets_sent.to_string());
+
+        let packets_recv = counter.packets_recv();
+        tmp.insert("packets_recv", packets_recv.to_string());
+
+        #[cfg(any(target_os = "linux", target_os = "windows"))]
+        let _ = counter.drop_sent();
+    }
+
+    let mut net = vec![];
+
+    for (key, value) in map.iter() {
+        let name = key.into();
+        let ip = value.get("ip").unwrap_or(&String::new()).into();
+        let ip_v6 = value.get("ip_v6").unwrap_or(&String::new()).into();
+        let mac = value.get("mac").unwrap_or(&String::new()).into();
+        let bytes_sent_str: String = value.get("bytes_sent").unwrap_or(&"0".to_string()).into();
+        let bytes_recv_str: String = value.get("bytes_recv").unwrap_or(&"0".to_string()).into();
+        let packets_sent_str: String = value.get("packets_sent").unwrap_or(&"0".to_string()).into();
+        let packets_recv_str: String = value.get("packets_recv").unwrap_or(&"0".to_string()).into();
+
+        let bytes_sent = bytes_sent_str.parse::<u64>()?;
+        let bytes_recv = bytes_recv_str.parse::<u64>()?;
+        let packets_sent = packets_sent_str.parse::<u64>()?;
+        let packets_recv = packets_recv_str.parse::<u64>()?;
+
+        net.push(system_info::Net {
+            name,
+            ip,
+            ip_v6,
+            mac,
+            bytes_sent,
+            bytes_recv,
+            packets_sent,
+            packets_recv,
+        });
+    }
+
+    net.sort_unstable();
 
     Ok(system_info::SystemInfo {
         platform,

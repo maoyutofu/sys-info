@@ -1,17 +1,18 @@
+use serde::Deserialize;
 use serde::Serialize;
 use std::boxed::Box;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Result<T> {
-    code: i32,
-    msg: &'static str,
+    pub code: i32,
+    pub msg: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
-    data: Option<T>,
+    pub data: Option<T>,
 }
 
 pub struct Error {
-    code: i32,
-    message: &'static str,
+    pub code: i32,
+    pub message: &'static str,
 }
 
 impl Result<()> {
