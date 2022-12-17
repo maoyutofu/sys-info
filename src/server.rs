@@ -40,10 +40,13 @@ async fn index() -> impl Responder {
 
 #[get("/sys-id")]
 async fn sys_id() -> impl Responder {
-    let result = super::get_device_id().await;
+    let id = super::get_device_id().await;
+
+    let result = &Result::success_return_data(id);
+
     HttpResponse::Ok()
         .content_type("application/json")
-        .body(serde_json::to_string_pretty(&Result::success_return_data(result)))
+        .body(serde_json::to_string_pretty(result).unwrap())
 }
 
 #[get("/sys-platform")]

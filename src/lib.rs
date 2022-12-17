@@ -27,14 +27,17 @@ fn str_md5(str: &[u8]) -> String {
 
 /// 获取deviceId
 /// 采用机器唯一标识符、计算机的物理内核数、处理器序列号、key 进行 SHA256 计算得到deviceId
-async fn get_device_id() -> String {
+async fn get_device_id() -> system_info::MachineId {
     let mut builder = IdBuilder::new(Encryption::SHA256);
     builder
         .add_component(HWIDComponent::SystemID)
         .add_component(HWIDComponent::CPUCores)
         .add_component(HWIDComponent::CPUID);
     let device_id = builder.build("").unwrap_or(String::from(""));
-    str_md5(device_id.as_bytes())
+    
+    system_info::MachineId {
+        id: str_md5(device_id.as_bytes())
+    }
 }
 
 async fn sys_platform() -> std::result::Result<system_info::Platform, Error> {

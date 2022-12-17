@@ -73,3 +73,8 @@ pub struct Cpu {
     pub count: u64,
     pub usage: f32,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MachineId {
+    pub id: String,
+}
