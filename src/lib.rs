@@ -22,7 +22,7 @@ pub mod system_info;
 fn str_md5(str: &[u8]) -> String {
     // let str = format!("{:x}", md5::compute(str));
     // str[8..24].to_string()
-    format!("{:x}", md5::compute(str))
+    format!("{:X}", md5::compute(str))
 }
 
 /// 获取deviceId
