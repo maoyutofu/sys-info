@@ -11,12 +11,33 @@ use heim::{
     Error,
 };
 
+use machineid_rs::HWIDComponent;
+use machineid_rs::{Encryption, IdBuilder};
+
 pub mod config;
 pub mod result;
 pub mod server;
 pub mod system_info;
 
-async fn sys_info(timer: u64) -> std::result::Result<system_info::SystemInfo, Error> {
+fn str_md5(str: &[u8]) -> String {
+    // let str = format!("{:x}", md5::compute(str));
+    // str[8..24].to_string()
+    format!("{:x}", md5::compute(str))
+}
+
+/// 获取deviceId
+/// 采用机器唯一标识符、计算机的物理内核数、处理器序列号、key 进行 SHA256 计算得到deviceId
+async fn get_device_id() -> String {
+    let mut builder = IdBuilder::new(Encryption::SHA256);
+    builder
+        .add_component(HWIDComponent::SystemID)
+        .add_component(HWIDComponent::CPUCores)
+        .add_component(HWIDComponent::CPUID);
+    let device_id = builder.build("").unwrap_or(String::from(""));
+    str_md5(device_id.as_bytes())
+}
+
+async fn sys_platform() -> std::result::Result<system_info::Platform, Error> {
     let platform = host::platform().await?;
     let system = platform.system().to_string();
     let release = platform.release().to_string();
@@ -24,11 +45,33 @@ async fn sys_info(timer: u64) -> std::result::Result<system_info::SystemInfo, Er
     let version = platform.version().to_string();
     let arch = platform.architecture().as_str().to_string();
 
+    let platform = system_info::Platform {
+        system,
+        release,
+        hostname,
+        version,
+        arch,
+    };
+
+    Ok(platform)
+}
+
+async fn sys_memory() -> std::result::Result<system_info::Memory, Error> {
     let memory = memory::memory().await?;
     let total = memory.total().get::<information::megabyte>();
     let free = memory.free().get::<information::megabyte>();
     let available = memory.available().get::<information::megabyte>();
 
+    let memory = system_info::Memory {
+        total,
+        free,
+        available,
+    };
+    Ok(memory)
+}
+
+
+async fn sys_disk() -> std::result::Result<Vec<system_info::Disk>, Error> {
     let partitions = disk::partitions_physical().await?;
     futures::pin_mut!(partitions);
 
@@ -52,29 +95,10 @@ async fn sys_info(timer: u64) -> std::result::Result<system_info::SystemInfo, Er
         });
     }
 
-    let platform = system_info::Platform {
-        system,
-        release,
-        hostname,
-        version,
-        arch,
-    };
+    Ok(disk)
+}
 
-    let memory = system_info::Memory {
-        total,
-        free,
-        available,
-    };
-
-    let measurement_1 = cpu::usage().await?;
-    futures_timer::Delay::new(Duration::from_millis(timer)).await;
-    let measurement_2 = cpu::usage().await?;
-
-    let usage = (measurement_2 - measurement_1).get::<ratio::percent>();
-
-    let count = cpu::logical_count().await?;
-    let cpu = system_info::Cpu { count, usage };
-
+async fn sys_net() -> std::result::Result<Vec<system_info::Net>, Error> {
     let mut map: HashMap<String, HashMap<&str, String>> = HashMap::new();
 
     let nic = net::nic().await?;
@@ -172,6 +196,30 @@ async fn sys_info(timer: u64) -> std::result::Result<system_info::SystemInfo, Er
     }
 
     net.sort_unstable();
+
+    Ok(net)
+}
+
+
+async fn sys_cpu(timer: u64) -> std::result::Result<system_info::Cpu, Error> {
+    let measurement_1 = cpu::usage().await?;
+    futures_timer::Delay::new(Duration::from_millis(timer)).await;
+    let measurement_2 = cpu::usage().await?;
+
+    let usage = (measurement_2 - measurement_1).get::<ratio::percent>();
+
+    let count = cpu::logical_count().await?;
+    let cpu = system_info::Cpu { count, usage };
+
+    Ok(cpu)
+}
+
+async fn sys_info(timer: u64) -> std::result::Result<system_info::SystemInfo, Error> {
+    let platform = sys_platform().await?;
+    let net = sys_net().await?;
+    let memory = sys_memory().await?;
+    let disk = sys_disk().await?;
+    let cpu = sys_cpu(timer).await?;
 
     Ok(system_info::SystemInfo {
         platform,

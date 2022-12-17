@@ -38,6 +38,86 @@ async fn index() -> impl Responder {
         .body("Hello! <a href=\"sys-info\">See.</a>")
 }
 
+#[get("/sys-id")]
+async fn sys_id() -> impl Responder {
+    let result = super::get_device_id().await;
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(serde_json::to_string_pretty(&Result::success_return_data(result)))
+}
+
+#[get("/sys-platform")]
+async fn sys_platform() -> impl Responder {
+    let result = match super::sys_platform().await {
+        Err(e) => serde_json::to_string_pretty(&Result::error_description(
+            Result::SYS_ERROR,
+            &e.to_string(),
+        )),
+        Ok(si) => serde_json::to_string_pretty(&Result::success_return_data(si)),
+    };
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(result.unwrap())
+}
+
+
+#[get("/sys-memory")]
+async fn sys_memory() -> impl Responder {
+    let result = match super::sys_memory().await {
+        Err(e) => serde_json::to_string_pretty(&Result::error_description(
+            Result::SYS_ERROR,
+            &e.to_string(),
+        )),
+        Ok(si) => serde_json::to_string_pretty(&Result::success_return_data(si)),
+    };
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(result.unwrap())
+}
+
+#[get("/sys-disk")]
+async fn sys_disk() -> impl Responder {
+    let result = match super::sys_disk().await {
+        Err(e) => serde_json::to_string_pretty(&Result::error_description(
+            Result::SYS_ERROR,
+            &e.to_string(),
+        )),
+        Ok(si) => serde_json::to_string_pretty(&Result::success_return_data(si)),
+    };
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(result.unwrap())
+}
+
+
+#[get("/sys-net")]
+async fn sys_net() -> impl Responder {
+    let result = match super::sys_net().await {
+        Err(e) => serde_json::to_string_pretty(&Result::error_description(
+            Result::SYS_ERROR,
+            &e.to_string(),
+        )),
+        Ok(si) => serde_json::to_string_pretty(&Result::success_return_data(si)),
+    };
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(result.unwrap())
+}
+
+#[get("/sys-cpu")]
+async fn sys_cpu(config: web::Data<Arc<config::Config>>) -> impl Responder {
+    let result = match super::sys_cpu(config.sys.timer).await {
+        Err(e) => serde_json::to_string_pretty(&Result::error_description(
+            Result::SYS_ERROR,
+            &e.to_string(),
+        )),
+        Ok(si) => serde_json::to_string_pretty(&Result::success_return_data(si)),
+    };
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(result.unwrap())
+}
+
 #[get("/sys-info")]
 async fn sys_info(config: web::Data<Arc<config::Config>>) -> impl Responder {
     let result = match super::sys_info(config.sys.timer).await {
@@ -75,6 +155,12 @@ pub async fn start(config: config::Config) -> std::io::Result<()> {
             .data(config_arc_clone.clone())
             .service(index)
             .service(sys_info)
+            .service(sys_net)
+            .service(sys_platform)
+            .service(sys_memory)
+            .service(sys_disk)
+            .service(sys_cpu)
+            .service(sys_id)
             .service(internal_sys_info)
     })
     .bind((bind, port))?
